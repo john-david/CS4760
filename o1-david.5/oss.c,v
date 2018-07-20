@@ -1,0 +1,686 @@
+head	1.5;
+access;
+symbols;
+locks
+	o1-david:1.5; strict;
+comment	@ * @;
+
+
+1.5
+date	2018.03.29.21.03.55;	author o1-david;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2018.03.29.04.45.41;	author o1-david;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2018.03.29.00.15.31;	author o1-david;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2018.03.28.23.06.08;	author o1-david;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2018.03.28.18.52.31;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@set up
+@
+
+
+1.5
+log
+@needs resource matrix, clock updates, but compiles
+@
+text
+@/*
+ * John David
+ * CS 4760
+ * Assignment 5
+*/
+
+#include "oss.h"
+
+int proc_pid[max_procs] = { 0 };
+
+int sh_mem_ID;
+                                
+sh_mem *sh_mem_ptr;
+                              
+int sem_clock;
+                              
+int sem_resources;
+
+struct sembuf sbuf;                       
+                                 
+char msg_log[1000] = "";
+                           
+void sem_wait(int);
+
+void sem_signal(int); 
+
+void write_log(char*);
+
+int kill_proc(int, int);
+
+void interrupt_signal_alert(int);
+
+void terminate_signal_alert(int);
+
+void alarm_signal_alert(int);
+
+int sigcheck();
+
+
+
+int main(int argc, char *argv[]){
+
+    int verbose = 1;
+    int line_count = 0;
+
+    int shared_mem_key  = ftok(".", 'a');     
+    int sema_key1 = ftok(".", 'b');        
+    int sema_key2  = ftok(".", 'c'); 
+
+
+    /* shared memory allocation */
+    sh_mem_ID = shmget(shared_mem_key, sh_mem_alloc, 0600 | IPC_CREAT);
+    if (sh_mem_ID == -1) {
+        perror("shmget Err");
+        exit(1);
+    }
+
+    if ( ! (sh_mem_ptr = (sh_mem *)(shmat(sh_mem_ID, 0, 0)))) {
+        perror("shmat Err");
+        exit(1);
+    }
+
+    fprintf(stderr, "shared memory has been allocated\n");
+
+    /* set up and initialize semaphores */
+
+    union semun { 
+        int val; 
+        struct semid_ds *buf; 
+        unsigned short * array; 
+    }argument;
+
+    argument.val = 1;
+
+    /* semophore to control access to clock */
+    if ((sem_clock = semget(sema_key1, 1, 0600 | IPC_CREAT)) == -1) {
+        perror("clock semget error\n");
+        exit(1);
+    }
+
+    if (semctl(sem_clock, 0, SETVAL, argument) == -1) {
+        perror("clock semctl error\n");
+        exit(1);
+    }
+
+    /* semaphore to control access to resources */
+    if ((sem_resources = semget(sema_key2, 1, 0600 | IPC_CREAT)) == -1) {
+        perror("resource semget error\n");
+        exit(1);
+    }
+
+    if (semctl(sem_resources, 0, SETVAL, argument) == -1) {
+        perror("resource semctl error\n");
+        exit(1);
+    }
+
+    fprintf(stderr, "clock and resources semaphores have been set\n");
+
+    /* checking  critical section entry with semaphores and set clock to 0:00 */
+    sem_wait(sem_clock);  
+                     
+    sh_mem_ptr->seconds = 0;
+    sh_mem_ptr->nanoseconds = 0;
+
+    sem_signal(sem_clock);  
+
+
+    /* initialize resources with random values and set intial values to 0 */
+
+    int i, j, x, y, z;
+
+    for (i = 0; i < max_resources; i++) {
+        
+        y = (rand() % max_instances) + 1;
+
+        sh_mem_ptr->resources[i].total_instances = y;
+
+        sh_mem_ptr->resources[i].instances_available = y;
+
+        sprintf(msg_log, "oss: resource %d will have %d instances\n", i, sh_mem_ptr->resources[i].total_instances);
+        line_count++;        
+
+        fprintf(stderr, "%s", msg_log);
+
+        write_log(msg_log);
+
+        for (j = 0; j < max_procs; j++) {
+
+            sh_mem_ptr->resources[i].claims[j] = 0;
+            sh_mem_ptr->resources[i].requests[j] = 0;
+            sh_mem_ptr->resources[i].allocations[j] = 0;
+            sh_mem_ptr->resources[i].released[j] = 0;
+
+        }
+
+    }
+
+    for (i = 0; i < max_procs; i++){ 
+        sh_mem_ptr->procs_used[i] = 0;
+    }
+
+    sprintf(msg_log, "oss: resources have been allocated\n");
+
+    fprintf(stderr, "%s", msg_log);
+
+    write_log(msg_log);
+    line_count++;
+
+
+    /* set max resource constant for users */
+
+    y = (rand() % max_instances) + 1;
+
+    sh_mem_ptr->max_resource_const = y;
+
+
+
+    /* prepare 2 second alarm */
+    //struct sigaction action;
+    //action.sa_handler = alarm_signal_alert;
+    //action.sa_flags = SA_RESTART; //<-- restart 
+
+    //sigaction(SIGALRM, &action, NULL);
+
+    alarm(2);
+
+    /* main loop */
+
+    int count;
+    int new_proc;
+    char proc_arg[25] = ""; 
+
+    int claim;
+
+    while(1){
+
+        /* check if any resources have been released */
+
+        for (i = 0; i < max_resources; i++) {
+            for (j = 0; j < max_procs; j++) {
+                if ( sh_mem_ptr->resources[i].released[j] != 0 ) {
+                    /* log resource release  */
+                    sprintf(msg_log, "oss: acknowledging proc %02d released R%d\n", j, i);
+                    
+                    sprintf(msg_log, "%s at time: %ld : %ld : %ld \n", msg_log, sh_mem_ptr->seconds, sh_mem_ptr->milliseconds, sh_mem_ptr->nanoseconds);
+                    
+                    write_log(msg_log);
+                    line_count++;
+                    
+                    /* log release in shared mem */
+                    sem_wait(sem_resources);
+
+                    sh_mem_ptr->resources[i].instances_available += sh_mem_ptr->resources[i].released[j];
+                    sh_mem_ptr->resources[i].released[j] = 0;
+                
+                    sem_signal(sem_resources);
+                }
+            }
+        }
+
+        /* allocate resources  */
+
+        for (i = 0; i < max_resources; i++) {
+            for (j = 0; j < max_procs; j++) {
+                if (sh_mem_ptr->resources[i].requests[j] > 0) {        
+                    claim = sh_mem_ptr->resources[i].claims[j] - sh_mem_ptr->resources[i].allocations[j];
+                    
+                    x = sh_mem_ptr->resources[i].requests[j];
+                    y = sh_mem_ptr->resources[i].allocations[j] + sh_mem_ptr->resources[i].requests[j];
+                    z = sh_mem_ptr->resources[i].total_instances;
+                    count = sh_mem_ptr->resources[i].instances_available;        
+            
+                    if ( x > claim || y > z) {
+
+                        sprintf(msg_log, "oss: blocking P%02d for requesting R%d ", j, i);
+
+                        sprintf(msg_log, "%s at time: %ld : %ld : %ld \n ", msg_log, sh_mem_ptr->seconds, sh_mem_ptr->milliseconds, sh_mem_ptr->nanoseconds);
+
+                        write_log(msg_log);
+                        line_count++;
+
+                        sem_wait(sem_resources);
+                        sh_mem_ptr->resources[i].requests[j] = -1;
+                        sem_signal(sem_resources);
+
+                    } else if (x <= count){
+
+                        sem_wait(sem_resources);
+                        sh_mem_ptr->procs_counter[j] += sh_mem_ptr->resources[i].requests[j];
+                        
+                        sprintf(msg_log, "oss: unblocking P%02d and granting it R%d", j, i);
+                        sprintf(msg_log, "%s at time: %ld : %ld : %ld \n ", msg_log, sh_mem_ptr->seconds, sh_mem_ptr->milliseconds, sh_mem_ptr->nanoseconds);
+
+                        write_log(msg_log);
+                        line_count++;                        
+
+                        sh_mem_ptr->resources[i].instances_available -= sh_mem_ptr->resources[i].requests[j];
+                        sh_mem_ptr->resources[i].allocations[j] += sh_mem_ptr->resources[i].requests[j];                        
+                        
+                        sh_mem_ptr->resources[i].requests[j] = 0;
+
+                        sem_signal(sem_resources);
+
+                    }   
+                }
+            }
+        }
+
+        /* fork users if below max_procs */              
+        count = 0;
+
+        for (i = 0; i < max_procs; i++) {
+
+            
+            if ( sh_mem_ptr->procs_used[i] == 0 && proc_pid[i] > 0 ) {
+                sprintf(msg_log, "oss: proc %02d has ended.", i);
+                write_log(msg_log);
+                line_count++;
+
+                if ( kill_proc(i, SIGTERM) != 0 ) {
+                    sprintf(msg_log, "oss: error killing proc %02d", i);
+                    write_log(msg_log);
+                    line_count++;
+                }
+            proc_pid[i] = 0;
+            }
+
+            if ( sh_mem_ptr->procs_used[i] ) 
+                count++;
+        }
+        
+
+        if(verbose == 0 && line_count <= 100000 ){
+            sprintf(msg_log, "oss: current proc count is %d", count);
+            write_log(msg_log);
+            line_count++;
+        }
+
+        /* find a slot for the new process in shared memory */
+        if ( count < max_procs ) {
+            for (i = 0; i <= max_procs; i++) {
+                if ( sh_mem_ptr->procs_used[i] == 0 ) {
+                    new_proc = i;
+                    break;
+                }
+            }
+
+            if(verbose == 0 && line_count <= 100000){
+                sprintf(msg_log, "oss: forking %d", new_proc);
+                write_log(msg_log);
+                line_count++;
+            }
+                
+            /* fork a new process */
+
+            if ((proc_pid[new_proc] = fork()) < 0) {
+                perror("oss: error forking new proc\n");
+    
+            } else {
+
+                if (proc_pid[new_proc] == 0) {
+                    sprintf(proc_arg, "%02d", new_proc);
+                    execl("./user", "user", proc_arg, (char *)NULL);
+
+                    if(verbose == 0 && line_count <= 100000){
+
+                        sprintf(msg_log, "oss: exec proc %02d after fork", new_proc);
+                        write_log(msg_log);
+                    }
+
+                }else {
+
+                    sh_mem_ptr->procs_used[new_proc] = 1;
+                    if(verbose == 0 && line_count <= 100000)
+                        sprintf(msg_log, "oss: forked pid: %d for proc: %02d", proc_pid[new_proc], new_proc);
+                        write_log(msg_log);
+                }
+            }
+
+        }
+
+        /* update clock */
+        
+        /* check if 60 simulated seconds have passed */
+
+        /* if line_count % 20 == 0, print resource table */
+
+
+
+        /* check for signals before looping again */
+        
+        if(signal_handler())
+            break;
+
+    }/* end while loop */
+
+ 
+    /* clean up shared memory and semaphore allocation */
+
+    for (i = 0; i < max_procs; i++) {
+        if ( sh_mem_ptr->procs_used[i] > 0 ) {
+            if ( kill_proc(i, SIGTERM) != 0 ) {
+                fprintf(stderr, "oss: error terminating user proc: %02d", i);
+            }
+        }
+    }
+
+    int sh_mem_ptr_clean = shmctl(sh_mem_ID, IPC_RMID, (struct shmid_ds *)NULL);
+
+    if ((semctl(sem_clock, 0, IPC_RMID, 1) == -1) && (errno != EINTR)) {
+        fprintf(stderr, "oss: clock removed");
+    }
+
+    if ((semctl(sem_resources, 0, IPC_RMID, 1) == -1) && (errno != EINTR)) {
+        fprintf(stderr, "oss: resources removed");
+    }
+
+
+
+    return 0;
+}
+
+void interrupt_signal_alert(int sig) {
+    fprintf(stderr, "oss: interrupt signal (SIGINT) received, exiting process\n");
+}
+
+void terminate_signal_alert(int sig) {
+    //fprintf(stderr, "oss: 2 real life seconds have elapsed.\n");
+    fprintf(stderr, "oss: termination signal (SIGTERM) received, exiting process\n");
+}
+
+void alarm_signal_alert(int sig){
+    fprintf(stderr, "oss: 2 seconds gave elapsed.\n");
+    fprintf(stderr, "oss: alarm signal (SIGALRM) received, exiting process.\n");
+}
+
+/*
+
+int alarm_signal_handler() {
+
+    signal(SIGALRM, alarm_signal_alert);
+
+    return 0;
+}
+
+*/
+
+int signal_handler(){
+
+    signal(SIGINT, interrupt_signal_alert);
+    signal(SIGTERM, terminate_signal_alert);
+    signal(SIGALRM, alarm_signal_alert);
+
+    return 0;
+}
+
+void sem_wait(int sem_id) {
+    /* struct sembuf sbuf; */
+         
+    sbuf.sem_num = 0;                           
+    sbuf.sem_op = -1;                           
+    sbuf.sem_flg = 0;                           
+
+    if (semop(sem_id, &sbuf, 1) == -1)  {
+            exit(0);
+    }
+
+    /* return; */
+}
+
+void sem_signal(int sem_id) {
+    /* struct sembuf sbuf; */
+                     
+    sbuf.sem_num = 0;                           
+    sbuf.sem_op = 1;                        
+    sbuf.sem_flg = 0;                       
+
+    if (semop(sem_id, &sbuf, 1) == -1)  {
+            exit(1);
+    }
+
+    /* return; */
+}
+
+void write_log(char *msg) {
+
+    FILE *fp;
+    if (!(fp = fopen("oss.log", "a"))) {
+        perror("oss error: can't open oss.log");
+        exit(1);
+    }
+    
+    fprintf(fp, "oss:\t%s\n", msg);
+    fclose(fp);
+}
+
+int kill_proc(int proc, int sig) {
+
+    int status;         
+    
+    kill(proc_pid[proc], sig);
+    wait(&status);
+
+    return WEXITSTATUS(status);
+}
+
+@
+
+
+1.4
+log
+@cleaned up some stuff, added alarm and signal handlers
+@
+text
+@d35 1
+a35 1
+void handler(int);
+d43 2
+d110 1
+a110 1
+    int i, x, y;
+d121 1
+d127 1
+a127 1
+        for (x = 0; x < max_procs; x++) {
+d129 4
+a132 4
+            sh_mem_ptr->resources[i].claims[x] = 0;
+            sh_mem_ptr->resources[i].requests[x] = 0;
+            sh_mem_ptr->resources[i].allocations[x] = 0;
+            sh_mem_ptr->resources[i].released[x] = 0;
+d147 10
+d159 3
+a161 3
+    struct sigaction action;
+    action.sa_handler = handler;
+    action.sa_flags = SA_RESTART; //<-- restart 
+d163 1
+a163 1
+    sigaction(SIGALRM, &action, NULL);
+d169 129
+d299 39
+d368 1
+a368 1
+    fprintf(stderr, "oss: 2 real life seconds have elapsed.\n");
+d372 3
+a374 2
+void handler(int signum){
+  printf("oss: 2 second alarm.\n");
+d377 3
+d381 8
+a388 1
+int signal_handler() {
+d392 1
+a392 1
+    signal(SIGALRM, terminate_signal_alert);
+a396 1
+
+d398 1
+a398 1
+    //struct sembuf sbuf;
+d408 1
+a408 1
+    //return;
+d412 1
+a412 1
+    //struct sembuf sbuf;
+d422 1
+a422 1
+    //return;
+@
+
+
+1.3
+log
+@added signal handing, resource randomization and preset values
+@
+text
+@d18 2
+a19 2
+                              
+int signum;
+d24 1
+d26 1
+d28 1
+d31 9
+a62 14
+    /* semophore to control access to clock */
+    if ((sem_clock = semget(sema_key1, 1, 0600 | IPC_CREAT)) == -1) {
+        perror("clock semget error\n");
+        exit(1);
+    }
+
+    /* semaphore to control access to resources */
+    if ((sem_resources = semget(sema_key2, 1, 0600 | IPC_CREAT)) == -1) {
+        perror("resource semget error\n");
+        exit(1);
+    }    
+
+    fprintf(stderr, "semaphores have been allocated\n");
+
+d69 1
+a69 1
+    } argument;
+d73 6
+d83 7
+d97 3
+a99 1
+    sem_wait(sem_clock);                       
+d102 1
+d135 5
+a139 1
+    sprintf(msg_log, "oss: resource have been allocated\n");
+d145 9
+a154 1
+    
+d162 1
+a162 1
+                fprintf(stderr, "There was an issue terminating child %02d", i);
+d182 27
+a208 2
+void sem_wait(int semid) {
+    struct sembuf sbuf;         
+d212 2
+a213 1
+    if (semop(semid, &sbuf, 1) == -1)  {
+d216 2
+a217 1
+    return;
+d220 3
+a222 2
+void sem_signal(int semid) {
+    struct sembuf sbuf;                     
+d226 2
+a227 1
+    if (semop(semid, &sbuf, 1) == -1)  {
+d230 2
+a231 1
+    return;
+d247 3
+a249 1
+    int status;                                  // Hold status from wait()
+d252 1
+@
+
+
+1.2
+log
+@shared mem, semaphores set up. untested.
+basic structure for process allocation and logging
+@
+text
+@d26 1
+a26 1
+void cleanup(int);
+d65 1
+a65 1
+    /* set up semaphores */
+d72 1
+d90 38
+a128 2
+    int need;
+    int i, x;
+d131 21
+a151 2
+    
+    cleanup(SIGTERM);
+a196 23
+void cleanup(int termsig) {
+    int i;
+
+    for (i = 0; i < max_procs; i++) {
+        if ( sh_mem_ptr->procs_used[i] > 0 ) {
+            if ( kill_proc(i, termsig) != 0 ) {
+                fprintf(stderr, "There was an issue terminating child %02d", i);
+            }
+        }
+    }
+
+    int sh_mem_ptr_clean = shmctl(sh_mem_ID, IPC_RMID, (struct shmid_ds *)NULL);
+
+    if ((semctl(sem_clock, 0, IPC_RMID, 1) == -1) && (errno != EINTR)) {
+        fprintf(stderr, "oss: clock removed");
+    }
+    
+    if ((semctl(sem_resources, 0, IPC_RMID, 1) == -1) && (errno != EINTR)) {
+        fprintf(stderr, "oss: resources removed");
+    }
+
+    return;
+}
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d7 1
+d9 155
+@

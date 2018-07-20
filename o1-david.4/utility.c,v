@@ -1,0 +1,80 @@
+head	1.1;
+access;
+symbols;
+locks
+	o1-david:1.1; strict;
+comment	@ * @;
+
+
+1.1
+date	2018.03.17.21.37.23;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@priority queue and process block code set, still missing a lot
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@
+
+/* John David
+ * CS 4760 
+ * Assignment 4
+*/
+
+
+#include "utility.h"
+
+int random_num(int n){
+
+    time_t t;
+    srand((unsigned)time(&t));
+    return (rand() % n + 1);
+
+}
+
+
+static Process_Block** queue;
+
+static Process_Block* process_block_controller;
+
+static Process_Block openblock = {-1, -1, -1, -1, -1};
+
+int init_priority_queue()
+{
+    queue = (Process_Block**)malloc(100*sizeof(Process_Block*));
+    if (queue == NULL)
+        return -1;
+    int i, j;
+    for (i = 0; i < 100; i++) {
+        queue[i] = (Process_BLock*)malloc(100*sizeof(Process_BLock));
+        if (queue[i] == NULL)
+            return -1;
+        for (j = 0; j < 100; j++) {
+            queue[i][j] = openblock;
+        }
+    }
+    return 0;
+}
+
+
+int init_process_control_block()
+{
+    initpriorityqueue();
+    process_block_controller = (Process_Block*)malloc(sizeof(Process_BLock));
+    if (process_block_controller == NULL)
+        return -1;
+    int i;
+    for (i = 0; i < 100; i++) {
+        process_block_controller[i] = openblock;
+    }
+    return 0;
+}
+@

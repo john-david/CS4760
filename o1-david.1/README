@@ -1,0 +1,23 @@
+John David
+CS 4760
+
+This directory is set up in the following manner:
+
+
+runsim.c and testsim.c both run according to the exercise in the book.
+
+makeargv.c is only used as a helper program for runsim.c 
+
+proc_fan.c runs the compiled versions of runsim.c and testsim.c 
+per the given instructions from both the spec sheet
+and the instructions given in class.
+
+For example, the command "proc_fan -n 20" will run runsim.c calling 
+20 processes using the testing.data file. 
+As described in class, the command "proc_fan -n 20 -f filename" will run runsim calling 20 processes using a user provided file.
+
+Per the instructions, getopt was used in the proc_fan.c file to read
+command line instructions.
+
+"make all" will compile the  program into an exec named proc_fan
+"make clean" will remove all executibles from the directory.

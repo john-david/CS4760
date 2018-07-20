@@ -1,0 +1,308 @@
+head	1.8;
+access;
+symbols;
+locks
+	o1-david:1.8; strict;
+comment	@ * @;
+
+
+1.8
+date	2018.02.05.17.14.52;	author o1-david;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	2018.02.05.17.09.40;	author o1-david;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	2018.02.05.17.04.29;	author o1-david;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	2018.02.05.16.55.44;	author o1-david;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	2018.02.04.20.12.51;	author o1-david;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	2018.01.30.23.08.31;	author o1-david;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2018.01.30.22.14.11;	author o1-david;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2018.01.30.21.47.11;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@working copy of runsim.c, needs main loop, forking, etc
+@
+
+
+1.8
+log
+@testing complete. works without a file modifier and with a file
+@
+text
+@
+
+/*
+
+John David
+CS 4760
+Assignment 1
+
+runsim program implementation for 3.9 Exercise Process Fans
+
+testing complete, works with commands "proc_fan -n 5" and "proc_fan -n 5 -f testing.data"
+
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#define MAX_CANON 1024
+
+int makeargv(const char *program, const char *delimiters, char ***argvp);
+
+int main(int argc, char *argv[]) {
+
+	/* variables 
+ *
+ * 	child_pid to track children
+ * 	**newargv tracks new arguments for children/array
+ *	delimiters space, tab, newline
+ *	line_commands for data from testing.data file
+ 	
+	*/
+
+	pid_t child_pid;
+	char **newargv;
+	char delimiters[] = " \t\n";
+	char readline[MAX_CANON];
+
+	/* pr_limit, pr_count per exercise instructs */
+
+	int pr_limit = 0;
+	int pr_count = 0;
+	
+	/* check for one argument, exit w/ error if not */
+	if(argc != 2){
+
+		fprintf(stderr, "Usage: %s number\n", argv[0]);
+		return 1;
+
+	}
+
+	/* set pr_limit to command line argument */
+	pr_limit = atoi(argv[1]);
+
+	fprintf(stderr, "\npr_limit: %d", pr_limit);
+
+	if(pr_limit < 0){
+	
+		/* negative values are not allowed */
+
+		fprintf(stderr, "error: pr_limit = %d  must be positive, check file input",
+			pr_limit);
+		perror("Error, stopping program");
+		return 1;
+
+	}
+
+	/* main loop */
+
+	while ((fgets(readline, MAX_CANON, stdin)) != NULL) {
+
+
+		fprintf(stderr, "\nreading in: %s\n", readline);
+
+		/* part a) if pr_count is pr_limit */
+		/* wait for child to finish, decrement pr_count */
+		if(pr_count >= pr_limit) {
+
+			wait(NULL);
+			pr_count--;
+
+		}
+
+		/* if child failed to fork, exit program w/ error */
+		/* increment pr_count */
+		pr_count ++;
+
+		if(child_pid = fork() < 0) {
+
+			perror("Error: fork has failed");
+			return 1;
+
+		}
+		/* part b) read a line and exec a program */
+		
+		if(child_pid == 0) {
+			
+			/* if makeargv fails exit with error */
+			if(makeargv(readline, delimiters, &newargv) < 0){
+
+				fprintf(stderr, "error on pid:%ld\n",
+					(long)getpid());
+				perror("Error: the child failed to construct an argument");
+					return 1;
+			}
+			
+			execvp(*newargv, newargv);
+			fprintf(stderr, "execvp failed! pid:%ld\n",
+				(long)getpid()); 
+			perror("Error: the child's exec call has failed");
+			
+		}
+		else{
+		/* part c) increment pr_count to track the number of active children */
+			pr_count++;
+			while ((child_pid = waitpid(-1, NULL, WNOHANG)))
+				if(child_pid == -1)
+					fprintf(stderr, "\n ending PID: %ld ", child_pid);
+					break;
+
+		}
+
+	
+	}
+
+	do{
+	
+		child_pid = wait(NULL);
+		
+		if(child_pid == -1)
+			break;
+	
+
+	}while(1);
+
+	/* end of program */
+	return 0;
+}
+@
+
+
+1.7
+log
+@added some newlines to clean up std output
+@
+text
+@d11 2
+@
+
+
+1.6
+log
+@compiler errors fixed. begin testing.
+@
+text
+@d54 1
+a54 1
+	fprintf(stderr, "pr_limit: %d", pr_limit);
+d72 1
+a72 1
+		fprintf(stderr, "reading in: %s\n", readline);
+d117 1
+@
+
+
+1.5
+log
+@fixed some bracketing errors
+@
+text
+@d98 1
+a98 1
+			if(makeargv(readline, delimitters, **newargv) < 0){
+d116 1
+a116 1
+				if((child_pid == -1)
+d124 9
+a132 2
+	while(r_wait(NULL) > 0)
+		;
+@
+
+
+1.4
+log
+@altered while to to clean up errors
+@
+text
+@d87 1
+a87 1
+		if((child_pid = fork() < 0) {
+d95 1
+a95 1
+		if((child_pid == 0) {
+@
+
+
+1.3
+log
+@added more pieces to the loop
+@
+text
+@d54 12
+a65 1
+	printf("pr_limit: %d", pr_limit);
+d72 2
+d83 3
+d89 1
+a89 1
+			perror("Error: fork failed");
+d93 3
+a95 4
+		else if((child_pid == 0) {
+
+			if(*(readline + strlen(readln) -1) = "\n")
+				*(readline + strlen(readln) - 1) = "\0";
+d97 1
+d102 1
+d105 1
+d109 1
+d112 1
+a112 1
+		else {
+@
+
+
+1.2
+log
+@fixed printf message
+@
+text
+@d36 1
+a36 1
+	char line_commands[MAX_CANON];
+d58 44
+d103 4
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d54 1
+a54 1
+	printf("pr_limit: %d" pr_limit);
+@

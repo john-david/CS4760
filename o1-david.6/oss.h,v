@@ -1,0 +1,106 @@
+head	1.1;
+access;
+symbols;
+locks
+	o1-david:1.1; strict;
+comment	@ * @;
+
+
+1.1
+date	2018.04.21.22.26.47;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@basic data structure, untested
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@/*
+ * John David
+ * CS 4760
+ * Assignment 6
+*/
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <time.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <sys/wait.h>
+#include <stdbool.h>
+#include <sys/stat.h>
+#include <sys/sem.h>
+#include <sys/msg.h>
+#include <sys/ipc.h>
+#include <limits.h>
+#include <semaphore.h>
+#include <fcntl.h>
+
+
+#define max_resources 20
+
+#define max_procs 18
+
+#define max_frame 1024
+
+typedef struct{
+
+    unsigned long int nanoseconds;
+    unsigned long int milliseconds;
+    unsigned long int seconds;
+
+
+}Clock;
+
+typedef struct{
+
+    long mType;
+    char mText[80];
+     
+}Message;
+
+typedef struct{
+
+    int page_id;
+    int dirty_bit;
+    int second_chance;
+    int occupied_status;
+    
+}Page;
+
+typedef struct{
+
+    Page page;
+    int status;
+    int ref_bit;
+
+}Frame;
+
+typedef struct{
+
+    Frame frames[256];
+    int frame_id;
+    int status;    
+
+}PageTable;
+
+
+
+
+
+
+@

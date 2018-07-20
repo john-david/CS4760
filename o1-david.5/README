@@ -1,0 +1,18 @@
+
+
+John David
+CS 4760
+
+The main files are oss.c, oss.h, user.c
+
+"make" will compile the set.
+
+To run, use "./oss"
+
+To run with verbose option, use "./oss -v"
+
+Overall it seems to work if verbose option is set in the main loop of oss 
+
+
+
+

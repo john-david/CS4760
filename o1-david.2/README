@@ -1,0 +1,31 @@
+
+
+John David
+CS 4760
+
+This project is structured around 3 files:
+
+main.c
+producer.c
+consumer.c
+
+"make" will compile all 3.
+
+"make clean" will clear out all executables and remove all .log files 
+that may have been created by producers and consumers
+
+usage: 
+
+"./master XX" where XX is the number of consumers you want to run
+
+There's also some bash files for cleaning up memory.
+
+bashTest searches through lsof and kills all processes associated with "o1-david"
+
+removeMem also searches through and calls ipcrm and kills the associated shmid's 
+
+**********************
+
+NOTE:
+
+I was unable to complete the final bash script to compile statistics

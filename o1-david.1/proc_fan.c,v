@@ -1,0 +1,205 @@
+head	1.3;
+access;
+symbols;
+locks
+	o1-david:1.3; strict;
+comment	@ * @;
+
+
+1.3
+date	2018.02.04.19.34.45;	author o1-david;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	2018.02.04.19.31.44;	author o1-david;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	2018.02.04.01.54.21;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@got this running using system call
+will try to alter with execve call, but unsuccessful so far
+@
+
+
+1.3
+log
+@changed a printf to fprintf
+@
+text
+@
+
+/*
+ *
+ * John David
+ * CS 4760 
+ * Assignment 1
+ *
+*/
+
+/* proc_fan.c */
+
+
+
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <errno.h>
+
+int main(int argc, char *argv[]){
+        int flags, opt;
+        int processes;
+        int argcount;
+
+        extern char *optarg;
+        extern int optind;
+
+        int fflag;
+        fflag = 0;
+        char *file_name;
+
+        processes = 0;
+        flags = 0;
+
+        printf("Hello, we have %d arguments\n", argc);
+
+        if(argc > 5)
+                perror("proc_fan: Error: Improper usage, more than 4 arguments");
+
+
+        while ((opt = getopt(argc, argv, "n:f:")) != -1) {
+
+                switch (opt) {
+
+                        case 'n':
+                        processes = atoi(optarg);
+                        flags = 1;
+                        break;
+
+                        case 'f':
+                        fflag = 1;
+                        file_name = optarg;
+                        fprintf(stderr, "file included: %s \n", file_name);
+                        break;
+
+                        default: /* '?' */
+
+                        fprintf(stderr, "proc_fan: Error: Usage: %s [-n processes] [optional: -f file-name]\n",argv[0]);
+                        exit(EXIT_FAILURE);
+               }
+           }
+
+        printf("flags=%d; fflag=%d; processes=%d; optind=%d\n", flags, fflag, processes, optind);
+
+        int i = processes;
+        char parameter[32];
+        sprintf(parameter, "%d", i);
+
+
+        /* if argc = 3: ./proc_fan -n (int processes) */
+        /* in this case, we utilize the file "testing.data" automatically */
+
+        if(flags == 1 && fflag == 0){
+
+                fprintf(stderr, "executing runsim with %d processes using the default testing.data file", processes);
+
+                char command[150];
+
+                strcpy(command, "./runsim ");
+                strcat(command, parameter);
+                strcat(command, " < ");
+                strcat(command, "testing.data");
+
+                system(command);
+
+
+        }
+
+        /* if argc = 4: ./proc_fan -n (int processes) (file_name) */
+        /* in this case, we utilize the user provided file */
+        
+        if(flags == 1 && fflag == 1){
+
+
+                fprintf(stderr, "executing runsim with %d processes using \'%s\' file\n", processes, file_name);
+
+                char command[150];
+
+                strcpy(command, "./runsim ");
+                strcat(command, parameter);
+                strcat(command, " < ");
+                strcat(command, file_name);
+
+                system(command);
+
+        }
+
+        exit(EXIT_SUCCESS);
+}
+@
+
+
+1.2
+log
+@made some alterations to fully capture the user given file name
+cleaned up the if conditions that call systems
+attempted to implement exec calls instead of system, but this approach failed
+@
+text
+@d77 1
+a77 1
+                printf("executing runsim with %d processes using the default testing.data file", processes);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d14 1
+d27 7
+d39 1
+a39 1
+        if(argc > 4)
+d43 1
+a43 1
+        while ((opt = getopt(argc, argv, "n:")) != -1) {
+d52 6
+d60 1
+a60 1
+                        fprintf(stderr, "proc_fan: Error: Usage: %s [-n processes] [optional file-name]\n",argv[0]);
+d65 1
+a65 7
+        printf("flags=%d; processes=%d; optind=%d\n", flags, processes, optind);
+
+        printf("file name argument = %s\n", argv[optind]);
+
+        char file_name[100];
+
+        strcpy(file_name, argv[optind]);
+d71 5
+a75 1
+        if(argc == 3){
+d88 1
+d93 2
+d97 1
+a97 5
+        if(argc == 4){
+
+
+
+                printf("executing runsim with %d processes using \'%s\' file\n", processes, file_name);
+a111 3
+
+
+
+@

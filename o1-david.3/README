@@ -1,0 +1,23 @@
+
+
+John David
+CS 4760
+Assignment 3
+
+OSS: Usage: %s [optional: -s processes -l output_file-name -t run_time]
+
+This program is set up around 3 files.
+
+oss.c - main program which spawns users
+user.c - runs user code, which increments clock
+utility.h - holder for utility functions and libraries
+utility.c - connected to utility.h
+
+./oss will run the program in default mode with 5 users running for 20 seconds
+
+./oss -h for help
+
+./oss -s x -l <filename> -t z will run the program with x users running for z seconds and output to <filename>
+
+
+

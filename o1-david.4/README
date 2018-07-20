@@ -1,0 +1,31 @@
+
+
+John David
+CS 4760
+Assignment 4
+
+
+This project is not working correctly, and I'm almost embarrassed to turn it in in its current state, but I ran out of time after
+having some scheduling issues due to a personal matter I had to deal with outside of school.   
+
+I had lots of trouble getting the process scheduler and blocks to work correctly. I had troubles getting it to work on one process.
+I also had some trouble with the clock setup. I had  users spawning, talking to the OSS, etc. shared memory for process blocks,
+message queues to send things back and forth, some code to move processes to the schedule (not working) and have routines
+to shut everything down. 
+
+______________________________
+
+OSS: Usage: ./oss
+
+This program is set up around 3 files.
+
+oss.c - main program which spawns users, shared memory, processblocks
+user.c - runs user code, which increments clock
+utility.h - holder for utility functions and libraries
+utility.c - connected to utility.h
+
+./oss will run the program
+
+
+
+

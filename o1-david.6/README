@@ -1,0 +1,30 @@
+
+
+John David
+CS 4760
+
+The main files are oss.c, oss.h, user.c
+
+"make" will compile the set.
+
+To run, use "./oss"
+
+The following options are available:
+
+-h help -- shows options
+
+-u [processes]  This sets the max number of processes used in the system. Default is 18
+
+-t [segfault %]  This is a configurable percentage for segfault. This will be passed to each process. Default is randomly set (1-5) 
+
+ 
+The basic shared memory structure completed. 
+
+The number of processes and segfault percentages are configuable. 
+
+Processes are spawned and killed.
+
+Left to do: implement memory management and gather statistics
+
+
+

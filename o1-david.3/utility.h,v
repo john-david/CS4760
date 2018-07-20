@@ -1,0 +1,25 @@
+head	1.1;
+access;
+symbols;
+locks
+	o1-david:1.1; strict;
+comment	@ * @;
+
+
+1.1
+date	2018.02.22.04.59.18;	author o1-david;	state Exp;
+branches;
+next	;
+
+
+desc
+@set up
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@@
